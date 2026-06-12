@@ -557,6 +557,79 @@ dl, dd { margin: 0; }
 .subhero .kicker { margin-bottom: 1.2rem; display: block; }
 .subhero p.deck { margin-top: 1.2rem; font-size: 1.06rem; color: var(--ink-2); max-width: 60ch; }
 
+/* ---- Páginas de detalle (proyecto / noticia) ---- */
+.detalle-hero {
+  max-width: var(--maxw);
+  margin: clamp(1.5rem, 4vw, 2.5rem) auto 0;
+  padding-inline: var(--gutter);
+}
+.detalle-hero-media {
+  aspect-ratio: 16 / 7;
+  border-radius: var(--radius);
+  background-color: #eceef2;
+  background-image: linear-gradient(150deg, #f2f3f6, #e2e4ea);
+  background-size: cover;
+  background-position: center;
+  box-shadow: var(--shadow);
+}
+.detalle-hero-media.sin-foto { display: grid; place-items: center; }
+.detalle-hero-media.sin-foto span {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  color: #c6c9d2;
+  letter-spacing: .02em;
+}
+.detalle-cabecera {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding: 0 var(--gutter) 2rem;
+}
+.detalle-cabecera .kicker { display: block; margin-bottom: 1rem; }
+.detalle-cabecera-articulo { max-width: 760px; }
+.detalle-meta {
+  margin-top: 1rem;
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.detalle-cuerpo { align-items: start; }
+.detalle-cuerpo > div > p, .detalle-articulo > p {
+  font-size: 1.06rem;
+  color: var(--ink-2);
+  max-width: 66ch;
+}
+.detalle-cuerpo > div > p + p, .detalle-articulo > p + p { margin-top: 1.1rem; }
+.detalle-articulo {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+.detalle-ficha { box-shadow: var(--shadow); }
+.detalle-ficha .item { grid-template-columns: 130px 1fr; }
+.detalle-galeria {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  max-width: var(--maxw);
+  margin: 2.5rem auto 0;
+  padding-inline: var(--gutter);
+}
+.detalle-galeria-item {
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius);
+  background-color: #eceef2;
+  background-size: cover;
+  background-position: center;
+  box-shadow: var(--shadow);
+}
+@media (min-width: 720px) {
+  .detalle-cuerpo { grid-template-columns: 1.5fr 1fr; }
+  .detalle-galeria { grid-template-columns: 1fr 1fr; }
+}
+
 /* ---- Estado de carga de datos ---- */
 .data-estado {
   font-size: .85rem;

@@ -48,32 +48,68 @@
     return filas;
   }
 
+  // Las planillas .xlsx traen una fila de instrucciones antes de los
+  // encabezados; buscamos la fila que contiene una clave conocida.
+  var CLAVES_ENCABEZADO = ["nombre", "titulo", "fecha"];
   function filasAObjetos(filas) {
     if (!filas.length) return [];
-    var encabezados = filas[0].map(function (h) { return h.trim().toLowerCase(); });
-    return filas.slice(1).map(function (f) {
+    var hIdx = 0;
+    for (var k = 0; k < filas.length; k++) {
+      var bajos = filas[k].map(function (v) { return String(v == null ? "" : v).trim().toLowerCase(); });
+      if (bajos.some(function (v) { return CLAVES_ENCABEZADO.indexOf(v) !== -1; })) { hIdx = k; break; }
+    }
+    var encabezados = filas[hIdx].map(function (h) { return String(h == null ? "" : h).trim().toLowerCase(); });
+    return filas.slice(hIdx + 1).map(function (f) {
       var obj = {};
-      encabezados.forEach(function (h, i) { obj[h] = (f[i] || "").trim(); });
+      encabezados.forEach(function (h, i) { obj[h] = String(f[i] == null ? "" : f[i]).trim(); });
       return obj;
     });
   }
 
-  function cargarCSV(shareUrl, respaldoLocal) {
+  // Lee un .xlsx con SheetJS (si está disponible) → matriz de filas.
+  function hayXLSX() { return typeof XLSX !== "undefined"; }
+  function leerXLSX(buffer) {
+    var wb = XLSX.read(buffer, { type: "array" });
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false, blankrows: false });
+  }
+
+  // Carga una planilla. Prioridad:
+  //   1. OneDrive (.xlsx vía SheetJS)   2. Respaldo local .xlsx (SheetJS)
+  //   3. Respaldo local .csv (parser propio — funciona aunque SheetJS falle)
+  function cargarPlanilla(shareUrl, respaldoXlsx) {
+    var respaldoCsv = respaldoXlsx.replace(/\.xlsx$/i, ".csv");
     var fuentes = [];
-    if (shareUrl) fuentes.push(urlDescargaOneDrive(shareUrl));
-    fuentes.push(respaldoLocal);
+    if (shareUrl && hayXLSX()) fuentes.push({ url: urlDescargaOneDrive(shareUrl), tipo: "xlsx", od: true });
+    if (hayXLSX()) fuentes.push({ url: respaldoXlsx, tipo: "xlsx", od: false });
+    fuentes.push({ url: respaldoCsv, tipo: "csv", od: false });
+
     var intento = function (idx) {
       if (idx >= fuentes.length) return Promise.resolve(null);
-      return fetch(fuentes[idx], { cache: "no-store" })
+      var f = fuentes[idx];
+      return fetch(f.url, { cache: "no-store" })
         .then(function (resp) {
           if (!resp.ok) throw new Error("HTTP " + resp.status);
+          if (f.tipo === "xlsx") {
+            return resp.arrayBuffer().then(function (buf) {
+              return { objetos: filasAObjetos(leerXLSX(buf)), desdeOneDrive: f.od };
+            });
+          }
           return resp.text().then(function (texto) {
-            return { objetos: filasAObjetos(parsearCSV(texto)), desdeOneDrive: fuentes[idx] !== respaldoLocal };
+            return { objetos: filasAObjetos(parsearCSV(texto)), desdeOneDrive: f.od };
           });
         })
         .catch(function () { return intento(idx + 1); });
     };
     return intento(0);
+  }
+
+  // Slug para URLs de detalle (sin acentos ni símbolos).
+  function slug(texto) {
+    return String(texto == null ? "" : texto).toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   }
 
   /* ---------- Fechas ---------- */
@@ -107,15 +143,19 @@
         escHTML(opts.sello || "BI") + "</span>" +
         (opts.chip ? '<span class="chip">' + escHTML(opts.chip) + "</span>" : "") + "</div>";
     }
-    var enlace = opts.enlace
-      ? '<a class="enlace" href="' + escHTML(opts.enlace) + '" target="_blank" rel="noopener">' + escHTML(opts.cta || "Leer más") + " →</a>"
+    var cta = opts.href
+      ? '<span class="enlace">' + escHTML(opts.cta || "Ver más") + " →</span>"
       : "";
-    return '<article class="cell-card">' + media +
-      '<div class="cell-card-body">' +
+    var cuerpo = '<div class="cell-card-body">' +
       '<span class="meta">' + escHTML(opts.meta || "") + "</span>" +
       "<h3>" + escHTML(opts.titulo) + "</h3>" +
-      "<p>" + escHTML(opts.texto || "") + "</p>" + enlace +
-      "</div></article>";
+      "<p>" + escHTML(opts.texto || "") + "</p>" + cta +
+      "</div>";
+    // La tarjeta completa enlaza a su página de detalle interna.
+    if (opts.href) {
+      return '<a class="cell-card" href="' + escHTML(opts.href) + '">' + media + cuerpo + "</a>";
+    }
+    return '<article class="cell-card">' + media + cuerpo + "</article>";
   }
 
   function inicialesSello(texto) {
@@ -130,7 +170,7 @@
     var limite = parseInt(target.getAttribute("data-limite") || "0", 10);
     target.innerHTML = '<p class="data-estado">Cargando noticias…</p>';
 
-    cargarCSV(data.onedrive && data.onedrive.noticias, data.respaldos.noticias).then(function (res) {
+    cargarPlanilla(data.onedrive && data.onedrive.noticias, data.respaldos.noticias).then(function (res) {
       if (!res) {
         target.innerHTML = '<p class="data-estado">No fue posible cargar las noticias.</p>';
         return;
@@ -149,7 +189,8 @@
           imagen: n.imagen, chip: n.categoria,
           meta: formatearFecha(n.fecha || ""),
           titulo: n.titulo, texto: n.resumen,
-          enlace: n.enlace, cta: "Leer más",
+          href: "noticia-detalle.html?id=" + encodeURIComponent(slug(n.titulo)),
+          cta: "Leer más",
           sello: inicialesSello(n.titulo)
         });
       }).join("");
@@ -165,7 +206,7 @@
     var soloDestacados = parseInt(target.getAttribute("data-destacados") || "0", 10);
     target.innerHTML = '<p class="data-estado">Cargando proyectos…</p>';
 
-    cargarCSV(data.onedrive && data.onedrive.proyectos, data.respaldos.proyectos).then(function (res) {
+    cargarPlanilla(data.onedrive && data.onedrive.proyectos, data.respaldos.proyectos).then(function (res) {
       if (!res) {
         target.innerHTML = '<p class="data-estado">No fue posible cargar los proyectos.</p>';
         return;
@@ -185,13 +226,133 @@
           imagen: p.imagen, chip: p.categoria,
           meta: [p.anio, p.ciudad].filter(Boolean).join(" · "),
           titulo: p.nombre, texto: p.descripcion,
-          enlace: p.enlace, cta: "Ver proyecto",
+          href: "proyecto-detalle.html?id=" + encodeURIComponent(slug(p.nombre)),
+          cta: "Ver proyecto",
           sello: inicialesSello(p.nombre)
         });
       }).join("");
       var fuente = $("[data-fuente-proyectos]");
       if (fuente && res.desdeOneDrive) fuente.textContent = "Sincronizado desde OneDrive";
     });
+  }
+
+  /* ---------- Páginas de detalle (dinámicas, sin código por ficha) ---------- */
+  function paramId() {
+    var m = window.location.search.match(/[?&]id=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+  function parrafos(texto) {
+    return String(texto || "").split(/\n+/).map(function (t) { return t.trim(); })
+      .filter(Boolean).map(function (t) { return "<p>" + escHTML(t) + "</p>"; }).join("");
+  }
+  function heroMedia(imagen, sello) {
+    if (imagen) {
+      return '<div class="detalle-hero-media" style="background-image:url(\'' + escHTML(imagen) + '\')"></div>';
+    }
+    return '<div class="detalle-hero-media sin-foto"><span aria-hidden="true">' + escHTML(sello || "BI") + "</span></div>";
+  }
+  function galeria(imagenesStr) {
+    var urls = String(imagenesStr || "").split("|").map(function (u) { return u.trim(); }).filter(Boolean);
+    if (!urls.length) return "";
+    return '<div class="detalle-galeria">' + urls.map(function (u) {
+      return '<div class="detalle-galeria-item" style="background-image:url(\'' + escHTML(u) + '\')"></div>';
+    }).join("") + "</div>";
+  }
+  function botonExterno(enlace, texto) {
+    return enlace
+      ? '<p style="margin-top:1.8rem;"><a class="btn" href="' + escHTML(enlace) +
+        '" target="_blank" rel="noopener">' + escHTML(texto) + " →</a></p>"
+      : "";
+  }
+  function noEncontrado(target, mensaje, volverHref, volverTexto) {
+    target.innerHTML = '<section class="section"><div class="split"><div>' +
+      '<h1 class="display-l">' + escHTML(mensaje) + "</h1>" +
+      '<p class="lede" style="margin-top:1rem;">El contenido pudo haber cambiado de nombre o aún no está publicado.</p>' +
+      '<p style="margin-top:1.6rem;"><a class="btn" href="' + volverHref + '">' + escHTML(volverTexto) + "</a></p>" +
+      "</div></div></section>";
+  }
+
+  function mountProyectoDetalle() {
+    var target = $("[data-proyecto-detalle]");
+    if (!target || target.dataset.mounted) return;
+    target.dataset.mounted = "1";
+    var id = paramId();
+    target.innerHTML = '<p class="data-estado">Cargando proyecto…</p>';
+
+    cargarPlanilla(data.onedrive && data.onedrive.proyectos, data.respaldos.proyectos).then(function (res) {
+      if (!res) { noEncontrado(target, "No fue posible cargar el proyecto", "proyectos.html", "Ver todos los proyectos"); return; }
+      var p = res.objetos.filter(function (x) { return x.nombre; })
+        .filter(function (x) { return slug(x.nombre) === id; })[0];
+      if (!p) { noEncontrado(target, "Proyecto no encontrado", "proyectos.html", "Ver todos los proyectos"); return; }
+
+      document.title = p.nombre + " — Bravo Izquierdo";
+      var meta = [p.anio, p.ciudad].filter(Boolean).join(" · ");
+      var ficha = [
+        ["Cliente", p.cliente], ["Superficie", p.superficie],
+        ["Estado", p.estado], ["Año", p.anio], ["Ciudad", p.ciudad],
+        ["Categoría", p.categoria]
+      ].filter(function (f) { return f[1]; }).map(function (f) {
+        return '<div class="item"><dt>' + escHTML(f[0]) + "</dt><dd>" + escHTML(f[1]) + "</dd></div>";
+      }).join("");
+      var cuerpo = parrafos(p.descripcion_larga || p.descripcion);
+
+      target.innerHTML =
+        '<section class="detalle-hero">' + heroMedia(p.imagen, inicialesSello(p.nombre)) + "</section>" +
+        '<section class="section">' +
+        '<div class="detalle-cabecera">' +
+        (p.categoria ? '<p class="kicker">' + escHTML(p.categoria) + "</p>" : "") +
+        '<h1 class="display-xl">' + escHTML(p.nombre) + "</h1>" +
+        (meta ? '<p class="detalle-meta">' + escHTML(meta) + "</p>" : "") +
+        "</div>" +
+        '<div class="detalle-cuerpo split">' +
+        "<div>" + (cuerpo || "<p>Próximamente más información sobre este proyecto.</p>") +
+        botonExterno(p.enlace, "Más información") + "</div>" +
+        (ficha ? '<aside><dl class="contact-list detalle-ficha">' + ficha + "</dl></aside>" : "<div></div>") +
+        "</div>" +
+        galeria(p.imagenes) +
+        '<p style="max-width:var(--maxw);margin:2.5rem auto 0;padding-inline:var(--gutter);">' +
+        '<a class="enlace" href="proyectos.html">← Volver a proyectos</a></p>' +
+        "</section>";
+      revelarNuevos(target);
+    });
+  }
+
+  function mountNoticiaDetalle() {
+    var target = $("[data-noticia-detalle]");
+    if (!target || target.dataset.mounted) return;
+    target.dataset.mounted = "1";
+    var id = paramId();
+    target.innerHTML = '<p class="data-estado">Cargando noticia…</p>';
+
+    cargarPlanilla(data.onedrive && data.onedrive.noticias, data.respaldos.noticias).then(function (res) {
+      if (!res) { noEncontrado(target, "No fue posible cargar la noticia", "noticias.html", "Ver todas las noticias"); return; }
+      var n = res.objetos.filter(function (x) { return x.titulo; })
+        .filter(function (x) { return slug(x.titulo) === id; })[0];
+      if (!n) { noEncontrado(target, "Noticia no encontrada", "noticias.html", "Ver todas las noticias"); return; }
+
+      document.title = n.titulo + " — Bravo Izquierdo";
+      var meta = [formatearFecha(n.fecha || ""), n.categoria].filter(Boolean).join(" · ");
+      var cuerpo = parrafos(n.cuerpo || n.resumen);
+
+      target.innerHTML =
+        (n.imagen ? '<section class="detalle-hero">' + heroMedia(n.imagen, "BI") + "</section>" : "") +
+        '<section class="section">' +
+        '<div class="detalle-cabecera detalle-cabecera-articulo">' +
+        (meta ? '<p class="kicker">' + escHTML(meta) + "</p>" : "") +
+        '<h1 class="display-l">' + escHTML(n.titulo) + "</h1>" +
+        "</div>" +
+        '<div class="detalle-articulo">' + (cuerpo || "<p>Próximamente el contenido completo de esta noticia.</p>") +
+        botonExterno(n.enlace, "Ver publicación original") + "</div>" +
+        '<p style="max-width:var(--maxw);margin:2.5rem auto 0;padding-inline:var(--gutter);">' +
+        '<a class="enlace" href="noticias.html">← Volver a noticias</a></p>' +
+        "</section>";
+      revelarNuevos(target);
+    });
+  }
+
+  // Activa el estado visible de cualquier .reveal recién insertado.
+  function revelarNuevos(scope) {
+    $$(".reveal", scope).forEach(function (el) { el.classList.add("is-visible"); });
   }
 
   /* ---------- Navegación ---------- */
@@ -299,11 +460,12 @@
   function boot() {
     safe(mountNoticias, "mountNoticias");
     safe(mountProyectos, "mountProyectos");
+    safe(mountProyectoDetalle, "mountProyectoDetalle");
+    safe(mountNoticiaDetalle, "mountNoticiaDetalle");
     safe(initNav, "initNav");
     safe(initSmoothAnchors, "initSmoothAnchors");
     safe(initReveals, "initReveals");
     safe(initCounters, "initCounters");
-    safe(initCursorCoords, "initCursorCoords");
     safe(initMarquee, "initMarquee");
     safe(initYear, "initYear");
     document.documentElement.classList.add("is-ready");
