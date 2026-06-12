@@ -6,6 +6,8 @@ El contenido (planillas e imágenes) vive en el propio hosting y el encargado de
 
 Diseño: **corporativo claro y limpio** — fondo blanco con mucho aire, tipografía Manrope (titulares) + Inter (texto), tarjetas con sombras suaves, y el rojo del logo (`#d31f26`) usado con precisión como acento: botones, chips, palabras destacadas y detalles.
 
+> 📋 **¿Por qué está hecho así?** Las decisiones de diseño y técnicas (incluido por qué **no** se usó OneDrive directo) están explicadas en **[DECISIONES.md](DECISIONES.md)**. Si retomas el proyecto desde otro computador o en una sesión nueva, lee ese archivo junto a este.
+
 ## Estructura
 
 ```
