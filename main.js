@@ -14,10 +14,21 @@
   };
   function safe(fn, name) { try { fn(); } catch (e) { console.warn("[" + name + "]", e); } }
 
-  /* ---------- OneDrive: descarga de planillas CSV ---------- */
+  /* ---------- OneDrive: descarga directa por vínculo compartido ---------- */
   function urlDescargaOneDrive(shareUrl) {
-    var base64 = btoa(shareUrl).replace(/=+$/, "").replace(/\//g, "_").replace(/\+/g, "-");
+    var base64 = btoa(unescape(encodeURIComponent(shareUrl)))
+      .replace(/=+$/, "").replace(/\//g, "_").replace(/\+/g, "-");
     return "https://api.onedrive.com/v1.0/shares/u!" + base64 + "/root/content";
+  }
+  function esEnlaceOneDrive(u) {
+    return /^https?:\/\/(1drv\.ms|onedrive\.live\.com|[^\/]*\.sharepoint\.com)\//i.test(u);
+  }
+  // Para columnas imagen/imagenes: si es un vínculo de OneDrive lo convierte
+  // a descarga directa; si es cualquier otra URL pública, la usa tal cual.
+  function urlImagen(v) {
+    v = String(v == null ? "" : v).trim();
+    if (!v) return "";
+    return esEnlaceOneDrive(v) ? urlDescargaOneDrive(v) : v;
   }
 
   function parsearCSV(texto) {
@@ -135,8 +146,9 @@
   /* ---------- Render de tarjetas ---------- */
   function htmlTarjeta(opts) {
     var media;
-    if (opts.imagen) {
-      media = '<div class="cell-card-media" style="background-image:url(\'' + escHTML(opts.imagen) + '\')">' +
+    var img = urlImagen(opts.imagen);
+    if (img) {
+      media = '<div class="cell-card-media" style="background-image:url(\'' + escHTML(img) + '\')">' +
         (opts.chip ? '<span class="chip">' + escHTML(opts.chip) + "</span>" : "") + "</div>";
     } else {
       media = '<div class="cell-card-media"><span class="media-label" aria-hidden="true">' +
@@ -246,13 +258,14 @@
       .filter(Boolean).map(function (t) { return "<p>" + escHTML(t) + "</p>"; }).join("");
   }
   function heroMedia(imagen, sello) {
-    if (imagen) {
-      return '<div class="detalle-hero-media" style="background-image:url(\'' + escHTML(imagen) + '\')"></div>';
+    var img = urlImagen(imagen);
+    if (img) {
+      return '<div class="detalle-hero-media" style="background-image:url(\'' + escHTML(img) + '\')"></div>';
     }
     return '<div class="detalle-hero-media sin-foto"><span aria-hidden="true">' + escHTML(sello || "BI") + "</span></div>";
   }
   function galeria(imagenesStr) {
-    var urls = String(imagenesStr || "").split("|").map(function (u) { return u.trim(); }).filter(Boolean);
+    var urls = String(imagenesStr || "").split("|").map(function (u) { return urlImagen(u); }).filter(Boolean);
     if (!urls.length) return "";
     return '<div class="detalle-galeria">' + urls.map(function (u) {
       return '<div class="detalle-galeria-item" style="background-image:url(\'' + escHTML(u) + '\')"></div>';

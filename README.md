@@ -83,6 +83,16 @@ Se muestran en el orden de las filas. Sin imagen, la tarjeta y el detalle muestr
 
 > **Cómo se identifica cada ficha:** la URL de detalle usa un `id` derivado del nombre/título (sin acentos ni símbolos). Si se **renombra** un proyecto o noticia, su URL de detalle cambia (los enlaces viejos dejarán de funcionar). El nombre/título debe ser único dentro de la planilla.
 
+### Imágenes desde la misma carpeta de OneDrive
+
+Las columnas `imagen` e `imagenes` aceptan **tres formatos** y el sitio resuelve cada uno automáticamente:
+
+1. **Vínculo de OneDrive** (lo más cómodo): sube la foto a la misma carpeta pública, *Compartir → Puede ver → Copiar vínculo*, y pega ese vínculo en la celda. El sitio lo convierte solo a descarga directa.
+2. **URL pública cualquiera** (CDN, otro hosting): se usa tal cual.
+3. **Ruta local del sitio**: `assets/img/foto.webp` si la foto va junto al hosting.
+
+Para la galería (`imagenes`), separa varias con `|`. Ejemplo: `vinculo1 | vinculo2 | vinculo3`.
+
 > Nota técnica: el sitio descarga la planilla `.xlsx` con la API pública de OneDrive (`api.onedrive.com/v1.0/shares`) y la lee en el navegador con **SheetJS** (cargado desde CDN, sin instalación). Si OneDrive no responde, usa el `.xlsx` local de `data/`; y si SheetJS no cargara, recurre a los `.csv` locales como respaldo final.
 
 ## Publicación (Hostinger u otro hosting)
