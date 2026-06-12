@@ -1,0 +1,24 @@
+IMÁGENES DE PROYECTOS Y NOTICIAS
+================================
+
+Esta carpeta es para las fotos que acompañan a los proyectos y noticias.
+El encargado de comunicaciones SÍ puede subir/cambiar archivos aquí
+(vía cPanel o la cuenta FTP restringida a la carpeta "data/").
+
+CÓMO USARLAS
+------------
+1. Sube la foto aquí (formato recomendado: WebP o JPG, ~1600px de ancho).
+2. En la planilla Excel, en la columna "imagen" (o "imagenes"), escribe
+   la ruta:
+       data/img/nombre-de-la-foto.webp
+
+   Para varias fotos en la galería de un proyecto, sepáralas con "|":
+       data/img/foto1.webp | data/img/foto2.webp | data/img/foto3.webp
+
+3. Guarda el Excel y súbelo a la carpeta "data/".
+
+CONSEJOS
+--------
+- Usa nombres sin espacios ni tildes: "centro-cultural.webp" (no "Centro Cultural.webp").
+- Comprime las fotos antes de subirlas (una foto de cámara puede pesar 5–10 MB;
+  optimizada queda en ~200 KB y el sitio carga mucho más rápido).

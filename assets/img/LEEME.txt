@@ -1,0 +1,14 @@
+IMÁGENES NATIVAS DEL SITIO
+==========================
+
+Esta carpeta es para las imágenes fijas del diseño del sitio:
+logos, isotipos, íconos, imágenes de fondo, etc.
+
+⚠️  NO se modifican desde comunicaciones. Forman parte del diseño y
+    solo cambian cuando se actualiza el sitio (con código).
+
+La cuenta FTP del encargado de comunicaciones NO debe tener acceso aquí
+(su acceso va restringido a la carpeta "data/").
+
+Se referencian desde el HTML/CSS con la ruta:
+    assets/img/nombre.webp

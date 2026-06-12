@@ -19,6 +19,10 @@
   # Documents — never cache
   ExpiresByType text/html "access plus 0 seconds"
 
+  # Planillas de contenido (proyectos/noticias) — siempre frescas:
+  # apenas el editor sube un .xlsx nuevo, el sitio muestra los cambios.
+  ExpiresByType application/vnd.openxmlformats-officedocument.spreadsheetml.sheet "access plus 0 seconds"
+
   # Code — revalidate hourly (server still responds 304 if unchanged)
   ExpiresByType text/css "access plus 1 hours"
   ExpiresByType application/javascript "access plus 1 hours"
@@ -52,6 +56,11 @@
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 
+  # Planillas .xlsx: nunca cachear (contenido que cambia desde cPanel)
+  <FilesMatch "\.(xlsx|csv)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+
   # Images & fonts: long cache
   <FilesMatch "\.(webp|jpg|jpeg|png|svg|avif|ico|woff|woff2)$">
     Header set Cache-Control "public, max-age=2592000"
@@ -73,6 +82,7 @@
   AddType font/woff2 .woff2
   AddType font/woff .woff
   AddType image/svg+xml .svg
+  AddType application/vnd.openxmlformats-officedocument.spreadsheetml.sheet .xlsx
 </IfModule>
 
 # ----- Gzip compression for text assets -----

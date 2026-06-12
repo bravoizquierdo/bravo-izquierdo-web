@@ -14,3 +14,7 @@ node_modules/
 # Archivos temporales
 *.tmp
 *.log
+
+# Archivos de bloqueo de Excel (se crean al abrir un .xlsx)
+~$*.xlsx
+~$*.xls
